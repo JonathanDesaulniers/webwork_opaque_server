@@ -2,13 +2,15 @@ package OpaqueServer::ProcessReturn;
 
 =pod
 =begin WSDL
-        _ATTR XHTML         $string  Problem content
-        _ATTR CSS           $string  Problem CSS      	
-        _ATTR progressInfo  $string  progress info    
-        _ATTR questionEnd   $string   boolean
-        _ATTR resources     @OpaqueServer::Resource  array
-        _ATTR results       $OpaqueServer::Results  complex value
-        _ATTR resultstmp    $OpaqueServer::ResultsTMP  complex value
+        _ATTR XHTML             $string  Problem content
+        _ATTR CSS               $string  Problem CSS      	
+        _ATTR progressInfo      $string  progress info    
+        _ATTR questionEnd       $string   boolean
+        _ATTR resources         @OpaqueServer::Resource  array
+        _ATTR results           $OpaqueServer::Results  complex value
+        _ATTR resultstmp        $OpaqueServer::ResultsTMP  complex value
+        _ATTR solfeedback       $string  Problem content
+        _ATTR correctanstable   $string  Problem content
 
 =end WSDL
 =cut
@@ -23,6 +25,8 @@ sub new {
     $self->{resources}   	= [];
     $self->{results}     	= ""; 
     $self->{resultstmp}         = "";
+    $self->{solfeedback}    = "";
+    $self->{correctanstable}    = "";
     bless $self;
     return $self;
 }
