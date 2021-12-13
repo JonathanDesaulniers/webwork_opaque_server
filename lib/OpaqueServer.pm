@@ -12,7 +12,7 @@ use strict;
 use warnings;
 
 
-use MIME::Base64 qw( encode_base64 decode_base64);
+use MIME::Base64 qw(encode_base64 decode_base64);
 use Date::Format qw(time2str) ;
 use WWSafe;
 
@@ -52,6 +52,7 @@ our $displayDebuggingData  = $OpaqueServer::Constants::displayDebuggingData;
 our $logDebuggingData      = $OpaqueServer::Constants::logDebuggingData;
 our $logFile               = $OpaqueServer::Constants::logFile;
 
+
 ####################################################################################
 #SOAP CALLABLE FUNCTIONS
 ####################################################################################
@@ -76,6 +77,10 @@ sub hello {
 our $ce;
 our $dbLayout;	
 our $db;
+
+# declare a variable for the readonly stance
+
+our $rdonly = 0;
 
 #      * A dummy implementation of the getEngineInfo method.
 #      * @return string of XML.
@@ -104,32 +109,42 @@ sub getEngineInfo {
 #      * A dummy implementation of the getQuestionMetadata method.
 #      * @param string $remoteid the question id
 #      * @param string $remoteversion the question version
+#      * @param string $questionHint if we show hint
+#      * @param string $questionSolution if we show solution
+#      * @param string $endingquestionSolution if we show solution after test
+#      * @param string $modeExam if question is in exam mode
 #      * @param string $questionbaseurl not used
 #      * @return string in xml format
 
 
 =pod
 =begin WSDL
-_IN questionID       $string
-_IN questionVersion  $string
-_IN questionBaseUrl  $string
-_FAULT               OpaqueServer::Exception
-_RETURN     		 $string 
+_IN questionID             $string
+_IN questionVersion        $string
+_IN questionHint           $string  questionHint
+_IN questionSolution       $string  questionSolution
+_IN endingquestionSolution $string  endingquestionSolution
+_IN modeExam               $string  modeExam
+_IN questionBaseUrl        $string
+_FAULT                     OpaqueServer::Exception
+_RETURN     		       $string 
 =end WSDL
 =cut
 
+
 sub getQuestionMetadata {
 	my $self = shift;
-	my ($remoteid, $remoteversion, $questionbaseurl) = @_;
+	my ($remoteid, $remoteversion, $questionbaseurl, $showhintafter, $showsolutionafter, $showsolutionaftertest, $numattemptlock, $exammode, $questionbaseurl) = @_;
 	warn "in getQuestionMetadata";
-	warn "\tremoteid $remoteid remoteversion $remoteversion questionbaseurl $questionbaseurl";
-	$self->handle_special_from_questionid($remoteid, $remoteversion, 'metadata');
+	warn "\tremoteid $remoteid remoteversion $remoteversion showhintafter $showhintafter showsolutionafter $showsolutionafter showsolutionaftertest $showsolutionaftertest numattemptlock $numattemptlock exammode $exammode questionbaseurl $questionbaseurl";
+	$self->handle_special_from_questionid($remoteid, $remoteversion, $showhintafter, $showsolutionafter, $showsolutionaftertest, $numattemptlock, $exammode, 'metadata');
      return '<questionmetadata>
                      <scoring><marks>' . MAX_MARK . '</marks></scoring>
                      <plainmode>no</plainmode>
              </questionmetadata>';
-}
 
+
+}
 
 
 # 
@@ -137,6 +152,11 @@ sub getQuestionMetadata {
 #      *
 #      * @param string $questionid question id.
 #      * @param string $questionversion question version.
+#      * @param string $questionHint if we show hint
+#      * @param string $questionSolution if we show solution
+#      * @param string $endingquestionSolution if we show solution after test
+#      * @param string $maxnumAttempt Num of attempt before read only
+#      * @param string $modeExam if question is in exam mode
 #      * @param string $url not used.
 #      * @param array $paramNames initialParams names.
 #      * @param array $paramValues initialParams values.
@@ -147,6 +167,11 @@ sub getQuestionMetadata {
 =begin WSDL
 _IN questionID              $string  questionID
 _IN questionVersion         $string  questionVersion
+_IN questionHint            $string  questionHint
+_IN questionSolution        $string  questionSolution
+_IN endingquestionSolution  $string  endingquestionSolution
+_IN maxnumAttempt           $string  maxnumAttempt
+_IN modeExam                $string  modeExam
 _IN questionBaseUrl         $string  questionBaseUrl
 _IN initialParamNames       @string  paramNames
 _IN initialParamValues      @string  paramValues
@@ -158,7 +183,7 @@ _RETURN              $OpaqueServer::StartReturn
 
 sub start {
     my $self = shift;
-	my ($questionid, $questionversion, $url, $initialParamNames, $initialParamValues,$cachedResources) = @_;	
+	my ($questionid, $questionversion, $questionhint, $questionsolution, $endingquestionsolution, $maxnumattempt, $modeexam, $url, $initialParamNames, $initialParamValues,$cachedResources) = @_;	
 	#warn "question base url is $url\n";
 	# get course name
 	$url = $url//'';
@@ -168,10 +193,16 @@ sub start {
 	my $paramNames = ref($initialParamNames)? $initialParamNames:[];
 	my $paramValues = ref($initialParamValues)? $initialParamValues:[];
 	$self->handle_special_from_questionid($questionid, $questionversion, 'start');
+        
 	# the above call does nothing for ordinary questions -- does do something for testing questions 
     # zip params into hash
 	my $initparams = array_combine($paramNames, $paramValues);
 	$initparams->{questionid} = $questionid;
+	$initparams->{questionhint} = $questionhint;
+	$initparams->{questionsolution} = $questionsolution;
+	$initparams->{endingquestionsolution} = $endingquestionsolution;
+	$initparams->{maxnumattempt} = $maxnumattempt;
+	$initparams->{modeexam} = $modeexam;
 	$initparams->{courseName} = $courseName; #store courseName
 	
 	# use Tim Hunt's magic formula for creating the random seed:
@@ -194,13 +225,12 @@ sub start {
 		warn "\nparameters for start written to $logFile\n";
 	}
 
-	
-	
 	# warn "course used for accessing questions is $courseName\n\n";
 	# create startReturn type and fill it
 	my $return = OpaqueServer::StartReturn->new(
 			$questionid, $questionversion, $initparams->{display_readonly} 
 	); #readonly if this value is defined and 1
+	
 	
 	$return->{CSS} = $self->get_css();
 	$return->{progressInfo} = "Try 1";
@@ -255,6 +285,8 @@ _RETURN      $OpaqueServer::ProcessReturn
 =end WSDL
 =cut
 
+
+
 sub process {
 	my $self = shift;
 	my ($questionSession, $names, $values) = @_;
@@ -266,13 +298,14 @@ sub process {
 	# incrementing by more than one helps some pseudo random number generators ????	
 	my $problem_seed  = $params->{'randomseed'} 
 	                     + 12637946 *($params->{'attempt'}//0) || 0;
-	$params->{computed_problem_seed}= $problem_seed; # update problem_seed. 
+	$params->{computed_problem_seed}= $problem_seed; # update problem_seed.
 	
     $self->handle_special_from_process($params);
-	# initialize the attempt number
+	# initialize the attempt number and pasttry for showing hint and solution
 	$params->{try} = $params->{try}//-666;
+	$params->{pasttry} = $params->{pasttry}//0;
 	# bump the attempt number if this is a submission
-	$params->{try}++ if defined( $params->{WWsubmit} ); # or defined( $params->{WWcorrectAns} );
+	$params->{try}++ if (defined($params->{WWsubmit}));
 	# prepare return object 
 	my $return = OpaqueServer::ProcessReturn->new();
 	if (defined($params->{questionid} and $params->{questionid}=~/\.pg/i) ){
@@ -282,6 +315,7 @@ sub process {
 	    # this was used for testing the server using testopaque module
 		$return->{XHTML}=$self->get_html_original($questionSession, $params->{try}, $params);
 	}
+	
 	$return->{progressInfo} = 'Try ' .$params->{try};
 	$return->addResource( 
 		OpaqueServer::Resource->make_from_file(
@@ -289,6 +323,7 @@ sub process {
                 'world.gif', 
                 'image/gif'
         )
+		
     );
     
     ##################################
@@ -305,7 +340,7 @@ sub process {
     # Return results
     ##################################
    
-    if (defined($params->{submit}) ) {   
+    if (defined($params->{WWsubmit}) ) {   
     		$return->{resultstmp} = OpaqueServer::ResultsTMP->new();         
             $return->{resultstmp}->{questionLine}  = 'Opaque question: $questionSession';
             $return->{resultstmp}->{answerLine}    = '"finish" command from type issued';
@@ -314,15 +349,14 @@ sub process {
                         $return->{resultstmp}->{attempts} = ($mark)? $params->{try}: -1;
                          push @{$return->{resultstmp}->{scores}}, $score;
             $return->{resultstmp}->{TRY} = $params->{try};
-
-
+ 
     }
 
-    if (defined($params->{WWcorrectAns})){
+    if (defined($params->{finish})){
                 $return->{results} = OpaqueServer::Results->new();
             $return->{results}->{questionLine}  = 'Opaque question: $questionSession';
             $return->{results}->{answerLine}    = '"finish" command from type issued';
-            $return->{results}->{actionSummary} = 'Finished after '
+            $return->{results}->{actionSummary} = 'Finished after '                
                  . ($params->{'try'} - 1) . ' submits.'; 
                         $return->{results}->{attempts} = ($mark)? $params->{try}: -1; 
                         push @{$return->{results}->{scores}}, $score;
@@ -336,6 +370,20 @@ sub process {
 		$return->{results}->{answerLine} = '"-finish" command from behaviour issued';
 		$return->{results}->{actionSummary} = 'Finished by Submit all and finish. Treating as a pass.';
 		$return->{results}->{attempts} = 0;
+                $return->{resultstmp} = OpaqueServer::ResultsTMP->new();
+                $return->{resultstmp}->{attempts} = 0;
+	}
+	
+	##################################
+    # Push solution and correctans to general feedback if needed
+    ##################################
+    
+	if (defined($params->{body}) && ($params->{endingquestionsolution} eq 1)) {
+	    $return->{solfeedback} = $params->{body};
+    }
+	
+	if (defined($params->{attempttable})){
+		$return->{correctanstable} = $params->{attempttable};
 	}
 
 	######################
@@ -362,7 +410,7 @@ sub process {
 			for my $key (keys %{$return->{resultstmp} }) {
 				$str .= "\t$key => ".($return->{resultstmp}->{$key}). ", \n";
 			}
-			push @lines, "ResultsTMP returned: \n";
+			push @lines, "Results returned: \n";
 			push @lines, $str;
 		}
 		writeLog(@lines);
@@ -379,6 +427,8 @@ sub process {
 =begin WSDL
 _IN questionSession  $string
 _FAULT               OpaqueServer::Exception
+_RETURN      $OpaqueServer::ProcessReturn
+
 =end WSDL
 =cut
 
@@ -471,7 +521,7 @@ sub handle_special_from_sessionid {
             $sessionid = substr($sessionid, 3);
     }
 	if ( $sessionid =~/\-/ ) {	
-		my ($questionid, $version) = split('-',$sessionid, 1); 
+		my ($questionid, $version) = split('-',$sessionid, 1);		
 		$version = $version//'';		
     	$self->handle_special_from_questionid($questionid, $version, $method);
     }
@@ -517,6 +567,7 @@ sub handle_special_from_process {
 #      * @submitteddata array preserved as hidden form fields.
 #      * @return string HTML code.
 # 
+
 sub get_html {
 	my $self = shift;
 	my ($sessionid, $try, $submitteddata) = @_; #( submitteddata is the same as initparams )
@@ -526,19 +577,26 @@ sub get_html {
 	my $display_readonly=0;
 	if (substr($sessionid, 0, 3) eq 'ro-') {
 		$display_readonly = 1;
+		$rdonly = 1;
 		warn "session id begins with ro- :  $sessionid ";
 	}
-	######################################
+	
+	######################################	
+	
 	my $localstate = $submitteddata->{localstate}//'WWpreview';
 	$localstate = 'question_attempted' if $localstate ne 'question_graded' and $submitteddata->{WWsubmit};
-	$localstate = 'question_graded'  if $submitteddata->{WWcorrectAns}; # or $submitteddata->{WWsubmit};
+	$localstate = 'question_graded'  if $submitteddata->{WWcorrectAns};
 	$submitteddata->{localstate}=$localstate; #update $params
-	my $WWpreviewDisabled     = ($display_readonly)?'disabled="disabled" ':'';
-	my $WWsubmitDisabled      = ($display_readonly)?'disabled="disabled" ':'';
-	my $WWcorrectAnsDisabled  = ($display_readonly)?'disabled="disabled" ':'';
-	$submitteddata->{finish}='Finish' if $submitteddata->{WWcorrectAns};
+	my $WWpreviewDisabled     = ($display_readonly or $localstate eq 'question_graded')?'disabled="disabled" ':'';
+	my $WWsubmitDisabled      = ($display_readonly or $localstate eq 'question_graded')?'disabled="disabled" ':'';
+	my $WWcorrectAnsDisabled  = ($display_readonly or $localstate eq 'question_graded')?'disabled="disabled" ':'';
+	$submitteddata->{finish}='Finish' if $display_readonly or $submitteddata->{WWcorrectAns};
 	$submitteddata->{submit}='Submit' if $submitteddata->{WWpreview} or 
 	    $submitteddata->{WWsubmit} or $submitteddata->{WWcorrectAns};
+	
+	######################################
+		
+	
 	######################################
 	# Adjust file path
 	######################################
@@ -558,9 +616,9 @@ sub get_html {
 	$filePath =~ s/\_\_/\//g; # handle fact that / must be replaced by __ 2 underscores
 	$filePath =~ s/^library/Library/;    # handle the fact that id's must start with non-caps (opaque/edit_opaque_form.php)
 
-	######################################
-	# Have PG render the problem
-	######################################
+	###############################################
+	# Have PG render the problem for a first time #
+	###############################################
 	
 	my $pg = OpaqueServer::renderOpaquePGProblem($filePath, $submitteddata);
 
@@ -575,35 +633,175 @@ sub get_html {
 	}
 	$PGscore = (@PGscore_array) ? $PGscore/@PGscore_array : 0;
 
-        #We add a floor value to only show the correct answer if all the answer of the problem are correct
+    #We add a floor value to only show the correct answer if all the answer of the problem are correct
 
-        my $floor = int($PGscore);
-
-        ## if problem is readonly, bump to grade and  "finish state".
-        ## Useful in Moodle for grading correctly if the test is in "submit all and finish" state.
-        if ($display_readonly == 1) {
-               $submitteddata->{WWsubmit} = 1;
-               $localstate = 'question_graded'  if $submitteddata->{WWsubmit};
-#                $WWpreviewDisabled     = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
-#                $WWsubmitDisabled      = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
-#               $WWcorrectAnsDisabled  =  ($localstate eq 'question_graded')?'disabled="disabled" ':'';
-               $submitteddata->{finish}='Finish' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
-               $submitteddata->{submit}='Submit' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
-       }
-	 
+    my $floor = int($PGscore);
+	   
+	## if answers are correct automatically bump state to "question_graded"
+	## as if the WWcorrectAns button (Finish and Grade) was pushed. Only 
+	## apply if not in exam mode
+	
+	if ($submitteddata->{modeexam} ne 1) {
+		if (defined($submitteddata->{WWsubmit}) && $PGscore==1) {
+			$submitteddata->{WWcorrectAns} =1;
+			$localstate = 'question_graded'  if $submitteddata->{WWcorrectAns};
+			$display_readonly = 1;
+			$WWpreviewDisabled     = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
+			$WWsubmitDisabled      = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
+			$WWcorrectAnsDisabled  =  ($localstate eq 'question_graded')?'disabled="disabled" ':'';
+			$submitteddata->{finish}='Finish' if $submitteddata->{WWcorrectAns};
+			$submitteddata->{submit}='Submit' if $submitteddata->{WWpreview} or 
+			$submitteddata->{WWsubmit} or $submitteddata->{WWcorrectAns};
+		}
+	}
 
     my $answerOrder = $pg->{flags}->{ANSWER_ENTRY_ORDER};
 	my $answers = $pg->{answers};
 	my $ce = create_course_environment($submitteddata->{courseName});
+	
+	############################################################################
+	# Compare current and past answers to adjust for showing hint and solution #
+	############################################################################
+		
+	my @student_ans;
+	my $value1;
+	my $key;
+	my $count = 0;
+	my $diff = 0;
+		
+	$submitteddata->{answers} = $answers;
 
-    #Ensure that the attempt result is not showed when the "preview" button is pushed
+	foreach $key (keys %{$submitteddata->{answers}})
+    {
+        $value1 = $submitteddata->{answers}->{$key}->{'student_ans'};
+        push (@student_ans, $value1);
+		$count++;
+		}
+	
+	@student_ans = sort @student_ans;
+	@student_ans = sort { $a <=> $b } @student_ans;
+	
+	for (my $i = 0; $i < $count; $i++) {
+		if (defined($submitteddata->{$i})){
+            if ($submitteddata->{$i} eq $student_ans[$i]) {
+			    $diff++;
+		    }
+		}
+	}
+	
+    for (my $i = 0; $i < $count; $i++) {
+        $submitteddata->{$i} = $student_ans[$i];
+		}
+	
+	if ($diff == $count){
+		$submitteddata->{sameans} = 1;
+	} else {
+	    $submitteddata->{sameans} = 0;
+	}
+    
+	if (defined($submitteddata->{WWsubmit})){
+        $submitteddata->{pasttry}++ if ($submitteddata->{sameans} eq 1);
+	}
+	
+    my $tryHS;
+	if (defined($submitteddata->{pasttry})){
+	    $tryHS = ($submitteddata->{try}) - $submitteddata->{pasttry};
+	    $submitteddata->{tryHS} = ($submitteddata->{try}) - $submitteddata->{pasttry};
+	} else {
+		$tryHS = 1;
+	    $submitteddata->{tryHS} = 1;
+	}
+	
+	my $Hlimit = $submitteddata->{questionhint};
+	my $Slimit = $submitteddata->{questionsolution};
+	
+	if ($PGscore == 1){
+	    $Hlimit = 1;
+		$Slimit = 1;
+	}
+	
+	my $Hleft = $submitteddata->{questionhint} - $submitteddata->{tryHS} + 1;
+	my $Sleft = $submitteddata->{questionsolution} - $submitteddata->{tryHS} + 1;
+	
+	############################################
+	#Determine if question is at max attempt   #
+	############################################
+	
+	my $step;
+	if ($submitteddata->{maxnumattempt} != 0){
+		$step = $submitteddata->{maxnumattempt} - $submitteddata->{tryHS} + 1;
+		if ($step <= 0){
+			$display_readonly = 1;
+		}
+	}
+	
+	
+	###############################################
+	#Show hint and solution if enough attempt done#
+	###############################################
+	
+	if ($submitteddata->{Hlimit} ne 0){
+		if (($submitteddata->{questionhint} - $submitteddata->{tryHS} + 1) <= 0){
+			$submitteddata->{Hshow} = 1;
+		} else{
+			$submitteddata->{Hshow} = 0;
+		}
+	}
+	
+	if ($submitteddata->{Slimit} ne 0){
+		if (($submitteddata->{questionsolution} - $submitteddata->{tryHS} + 1) <= 0){
+			$submitteddata->{Sshow} = 1;
+		} else{
+			$submitteddata->{Sshow} = 0;
+		}
+	}
+	
+	#############################################
+	#Push state to readonly if solution is shown#
+	#############################################
+	
+	if (defined($submitteddata->{tryHS})){
+	    if(($submitteddata->{questionsolution} ne 0) && ($submitteddata->{tryHS} > $submitteddata->{questionsolution})) {
+		    $display_readonly = 1;
+			$submitteddata->{stopall} = 1;
+	    }
+	}
+	
+	##########################################################################################
+	# if problem is readonly, bump to grade and  "finish state".                             #
+    # Useful in Moodle for grading correctly if the test is in "submit all and finish" state.#
+	##########################################################################################
+	
+    if ($display_readonly == 1) {
+        $submitteddata->{WWsubmit} = 1;
+        $localstate = 'question_graded'  if $submitteddata->{WWsubmit};
+        $WWpreviewDisabled     = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
+        $WWsubmitDisabled      = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
+        $WWcorrectAnsDisabled  =  ($localstate eq 'question_graded')?'disabled="disabled" ':'';
+        $submitteddata->{finish}='Finish' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
+        $submitteddata->{submit}='Submit' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
+    }
+	
+	#############################################
+	#Show hint and solution if state is readonly#
+	#############################################
+	
+	if ($localstate eq 'question_graded') {
+		$submitteddata->{PGstop} = 1;
+	}
 
+    ##################################################################################
+    #Ensure that the attempt result is not showed when the "preview" button is pushed#
+	#Ensure that attempt result is not showed in exam mode                           #
+    ##################################################################################
+	
     my $qgraded = '';
-    if ($localstate eq 'question_attempted' or $localstate eq 'question_graded') {
+    if (($localstate eq 'question_attempted' or $localstate eq 'question_graded') && ($submitteddata->{modeexam} != 1)) {
                 $qgraded = 1;
     } else {
                 $qgraded = 0;
-    } 
+				$floor = 0;
+    }	
 
     my $tbl = WeBWorK::Utils::AttemptsTable->new(
 		$answers//{},
@@ -612,11 +810,11 @@ sub get_html {
 		displayMode            => $ce->{pg}->{options}->{displayMode}||'images',
 		imgGen                 => '',	
 		showAttemptPreviews    => 1,
-		showAttemptResults     => $qgraded,  #($localstate eq 'question_graded'),
-		showCorrectAnswers     => $display_readonly || $floor,  #($localstate eq 'question_graded') ,
+		showAttemptResults     => $qgraded, #($localstate eq 'question_attempted' or $localstate eq 'question_graded'), 
+		showCorrectAnswers     => ($display_readonly or $floor),  #($localstate eq 'question_graded') ,
 		showMessages           => 0,
 		ce                     => $ce,
-		maketext               => WeBWorK::Localize::getLoc("fr"),
+		maketext               => WeBWorK::Localize::getLoc("fr_CA"),
 	);
 	my $attemptResults = $tbl->answerTemplate();
 	# render equation images
@@ -633,9 +831,9 @@ sub get_html {
 		%$submitteddata,
 	};
            
-	######################################
-	## prepare diagonostic information
-	######################################
+	#####################################
+	## prepare diagonostic information ##
+	#####################################
 
 	my $debuggingData = '';
 	if ($displayDebuggingData == 1) {
@@ -694,10 +892,17 @@ sub get_html {
 		$debuggingData .= '</div>';
 	}
 	# debugging data prepared
+	
+    ################################################
+	# Have PG render the problem for a second time #
+	################################################
+	
+	$pg = OpaqueServer::renderOpaquePGProblem($filePath, $submitteddata);
 
 	######################################
 	# Prepare output HTML
 	######################################
+        
 
     my $output = '<div class="local_testopaqueqe">';
 	## store state
@@ -705,24 +910,84 @@ sub get_html {
 		$output .= '<input type="hidden" name="%%IDPREFIX%%' . $name .
 				'" value="' . htmlspecialchars($hiddendata->{$name}//'') . '" />' . "\n";
 	}
-	## print results table
-	$output .= $attemptResults; 
+
+       	## print results table
+	$output .= $attemptResults;
 	## print question text
-	$output .= "\n<hr>\n". $pg->{body_text}."\n<hr>\n";
+	$output .= "\n<hr>\n". $pg->{body_text} ."\n<hr>\n";
 	## print buttons (preview, submit, grade&finish)
 	$output .= join("\n",#        '<h4>Actions</h4>',
 		'<p>',
-		q!<button type="submit" name="%%IDPREFIX%%WWpreview"  value=1!.qq!  $WWpreviewDisabled class="btn btn-primary"> Pr&eacutevisualiser </button> !,	
+	#	q!<button type="submit" name="%%IDPREFIX%%WWpreview"  value=1!.qq!  $WWpreviewDisabled class="btn btn-primary"> Pr&eacutevisualiser </button> !,	
 		q!<button type="submit" name="%%IDPREFIX%%WWsubmit" value=1!.qq!  $WWsubmitDisabled class="btn btn-primary"> Soumettre </button> !,
-	#	q!<button type="submit" name="%%IDPREFIX%%WWcorrectAns" value=1!.qq!  $WWcorrectAnsDisabled class="btn btn-primary"> Envoyer et Terminer </button>!,
+	# 	q!<button type="submit" name="%%IDPREFIX%%WWcorrectAns" value=1!.qq!  $WWcorrectAnsDisabled class="btn btn-primary"> Envoyer et Terminer </button>!,
 		'</p>',
 		'</div>',
 	);
+	
+	if (not defined($submitteddata->{stopall})){
+	
+	    ## print number of attempt left before showing hint
+	    if ($Hlimit != 0 && $tryHS <= $Hlimit){
+		    $output .= '<p> <b> Il vous reste '. $Hleft .' tentatives avant que les indices soient disponibles. </b> </p>'; 
+	    }		
+	
+	    ## print number of attempt left before showing solution
+
+        if ($Slimit != 0 && $tryHS <= $Slimit){
+		    $output .= '<p> <b> Il vous reste '. $Sleft .' tentatives avant que la question soit verrouill&eacutee. </b> </p>'; 
+	    }
+	    
+		## print number of attempt before question is closed
+		
+		if ($submitteddata->{maxnumattempt} != 0){
+			if ($step > 0){
+			$output .= '<p> <b> Il vous reste '. $step .' tentatives avant que la question soit verrouill&eacutee. </b> </p>';
+			}
+		}
+	}
 
 	$output .= $debuggingData;
+	
+	##################################################
+    #Prepare solution for feedback if needed         #
+    ##################################################
+	
+	if ($Slimit != 0){
+	my $pg2 = OpaqueServer::renderOpaquePGProblemFB($filePath, $submitteddata);
+	$submitteddata->{body} = $pg2->{body_text};
+	}
+	
+	##################################################
+    #Prepare attempt table for the feedback if needed#
+    ##################################################
+	
+	if ($submitteddata->{modeexam} == 1){
+		my $tbl2 = WeBWorK::Utils::AttemptsTable->new(
+		$answers//{},
+		answersSubmitted       => $submitteddata->{submit},  # a submit button was pressed
+		answerOrder            => $answerOrder//[],
+		displayMode            => $ce->{pg}->{options}->{displayMode}||'images',
+		imgGen                 => '',	
+		showAttemptPreviews    => 1,
+		showAttemptResults     => 1, 
+		showCorrectAnswers     => 1,
+		showMessages           => 0,
+		ce                     => $ce,
+		maketext               => WeBWorK::Localize::getLoc("fr_CA"),
+		);
+		my $attemptResults2 = $tbl2->answerTemplate();
+		# render equation images
+		$tbl2->imgGen->render(refresh => 1) if $tbl2->displayMode eq 'images';
+		
+		$submitteddata->{attempttable} = $attemptResults2;
+	}
+	
 	return ($output, $PGscore);
-    
+
 }
+
+
 ##############################################
 sub get_html_original {
 	my $self = shift;
@@ -782,9 +1047,48 @@ sub get_html_original {
 ##############################
 
 sub renderOpaquePGProblem {
+    
+# Get the number of try for enabling hint and solution using $tryHS
+# $Hlimit and $Slimit should be pushed from a Moodle form to choose
+# the number of attemp before showing the Hint and the Solution 
+	
     #print "entering renderOpaquePGProblem\n\n";
     my $problemFile = shift//'';
     my $formFields  = shift//'';  # these fields are part of $submitteddata"
+	#my $tryHS = 1;
+	#if (defined($formFields->{tryHS})){
+	#    $tryHS = $formFields->{tryHS};
+	#}
+	
+	my $Hshow;
+    my $Sshow;
+	
+	my $Hlimit = $formFields->{questionhint};
+	my $Slimit = $formFields->{questionsolution};
+	
+	$Hshow = $formFields->{Hshow};
+	$Sshow = $formFields->{Sshow};
+	
+	if ($formFields->{PGstop} eq 1) {
+		if ($Hlimit ne 0){	
+			$Hshow = 1;
+		}
+		if ($Slimit ne 0){
+			$Sshow = 1;
+		}
+	}
+        
+    #    if(($Hlimit ne 0) && ($tryHS > $Hlimit)) {
+    #          $Hshow = 1;
+    #     }
+    #    if(($Slimit ne 0) && ($tryHS > $Slimit)) {
+    #          $Sshow = 1;
+    #     }
+		 
+	#	if(($rdonly eq 1) && ($Slimit > 0)) {
+	#		  $Sshow = 1;
+	#	 }
+	
     my $courseName = $formFields->{courseName}||'daemon_course';
     #warn "rendering $problemFile in course $courseName \n";
  	$ce = create_course_environment($courseName);
@@ -800,18 +1104,20 @@ sub renderOpaquePGProblem {
 	# incrementing by more than one helps some pseudo random number generators ????	
 # 	my $problem_seed  = $formFields->{'randomseed'} 
 # 	                     + 12637946 *($formFields->{'attempt'}) || 0;
-# 	$formFields->{computed_problem_seed}= $problem_seed; # update problem_seed. 
-	my $problem_seed  = $formFields->{computed_problem_seed};
-	my $showHints     = $formFields->{showHints} || 0;
-	my $showSolutions = $formFields->{showSolutions} || 0;
+# 	$formFields->{computed_problem_seed}= $problem_seed; # update problem_seed.
+        my $problem_seed  = $formFields->{computed_problem_seed};
+	my $showHints     = $formFields->{showHints} || $Hshow;
+	my $showSolutions = $formFields->{showSolutions} || $Sshow;
 	my $problemNumber = $formFields->{'problem_number'} || 1;
-    my $displayMode   = $ce->{pg}->{options}->{displayMode}//'images';
-    # my $key = $r->param('key');
+       # my $permissionLevel = $formFields->{permissionLevel} || 10;
+    my $displayMode   = $ce->{pg}->{options}->{displayMode}//"images";
+    #  my $key = $r->param('key');
    
 	my $translationOptions = {
 		displayMode     => $displayMode,
 		showHints       => $showHints,
 		showSolutions   => $showSolutions,
+        #        permissionLevel => $permissionLevel,
 		refreshMath2img => 1,
 		processAnswers  => 1,
 		QUIZ_PREFIX     => '',	
@@ -821,8 +1127,8 @@ sub renderOpaquePGProblem {
 	my $extras = {};   # Check what this is used for.
 	
 	# Create template of problem then add source text or a path to the source file
-	#local $ce->{pg}{specialPGEnvironmentVars}{problemPreamble} = {TeX=>'',HTML=>''};
-	#local $ce->{pg}{specialPGEnvironmentVars}{problemPostamble} = {TeX=>'',HTML=>''};
+	# local $ce->{pg}{specialPGEnvironmentVars}{problemPreamble} = {TeX=>'',HTML=>''};
+	# local $ce->{pg}{specialPGEnvironmentVars}{problemPostamble} = {TeX=>'',HTML=>''};
 	# writeLog("preamble",$ce->{pg}{specialPGEnvironmentVars}{problemPreamble}{HTML});
 	my $problem = fake_problem($db, 'problem_seed'=>$problem_seed);
 	$problem->{value} = -1;	
@@ -850,7 +1156,89 @@ sub renderOpaquePGProblem {
 		$translationOptions,
 		$extras,
 	);
-		$pg;
+		return $pg;
+}
+
+##############################
+# Create the second rendering for de general feedback
+##############################
+
+sub renderOpaquePGProblemFB {
+    
+# Get the number of try for enabling hint and solution using $tryHS
+# $Hlimit and $Slimit should be pushed from a Moodle form to choose
+# the number of attemp before showing the Hint and the Solution 
+	
+    #print "entering renderOpaquePGProblemFB\n\n";
+    my $problemFile = shift//'';
+    my $formFields  = shift//'';  # these fields are part of $submitteddata"
+    my $courseName = $formFields->{courseName}||'daemon_course';
+    #warn "rendering $problemFile in course $courseName \n";
+ 	$ce = create_course_environment($courseName);
+ 	$dbLayout = $ce->{dbLayout};	
+ 	$db = WeBWorK::DB->new($dbLayout);
+    #warn "db is $db and ce is $ce \n";
+	my $key = '3211234567654321';
+	
+	my $user          =  fake_user($db); # don't use $formFields->{userid} --it's a number
+	my $set           = $formFields->{'this_set'} || fake_set($db);
+	# use Tim Hunt's magic formula for creating the random seed:
+	# _randomseed is the constant 123456789 and attempt is incremented by 1
+	# incrementing by more than one helps some pseudo random number generators ????	
+# 	my $problem_seed  = $formFields->{'randomseed'} 
+# 	                     + 12637946 *($formFields->{'attempt'}) || 0;
+# 	$formFields->{computed_problem_seed}= $problem_seed; # update problem_seed.
+        my $problem_seed  = $formFields->{computed_problem_seed};
+	my $showHints     = $formFields->{showHints} || 0;
+	my $showSolutions = $formFields->{showSolutions} || 1;
+	my $problemNumber = $formFields->{'problem_number'} || 1;
+       # my $permissionLevel = $formFields->{permissionLevel} || 10;
+    my $displayMode   = $ce->{pg}->{options}->{displayMode}//"images";
+    #  my $key = $r->param('key');
+   
+	my $translationOptions = {
+		displayMode     => $displayMode,
+		showHints       => $showHints,
+		showSolutions   => $showSolutions,
+		refreshMath2img => 1,
+		processAnswers  => 1,
+		QUIZ_PREFIX     => '',	
+		use_site_prefix => $ce->{server_root_url},
+		use_opaque_prefix => 1,	
+	};
+	my $extras = {};   # Check what this is used for.
+	
+	# Create template of problem then add source text or a path to the source file
+	# local $ce->{pg}{specialPGEnvironmentVars}{problemPreamble} = {TeX=>'',HTML=>''};
+	# local $ce->{pg}{specialPGEnvironmentVars}{problemPostamble} = {TeX=>'',HTML=>''};
+	# writeLog("preamble",$ce->{pg}{specialPGEnvironmentVars}{problemPreamble}{HTML});
+	my $problem = fake_problem($db, 'problem_seed'=>$problem_seed);
+	$problem->{value} = -1;	
+	#warn "problem->problem_seed() ", $problem->problem_seed, "\n";
+	if (ref $problemFile) {
+			$problem->source_file('');
+			$translationOptions->{r_source} = $problemFile; # a text string containing the problem
+	} else {
+			$problem->source_file($problemFile); # a path to the problem
+	}
+	
+	#FIXME temporary hack
+	$set->set_id('this set') unless $set->set_id();
+	$problem->problem_id("1") unless $problem->problem_id();
+		
+		
+	my $pg = new WeBWorK::PG(
+		$ce,
+		$user,
+		$key,
+		$set,
+		$problem,
+		123, # PSVN (practically unused in PG)
+		$formFields,
+		$translationOptions,
+		$extras,
+	);
+		return $pg;
 }
 
 ####################################################################################
@@ -899,7 +1287,7 @@ sub get_css {
     return <<END_CSS;
 		.que.opaque .formulation .local_testopaqueqe {
 			border-radius: 5px 5px 5px 5px;
-			background: #E4F1FA;
+		/*	background: #E4F1FA; */
 			padding: 0.5em;
 
 		}
@@ -927,10 +1315,10 @@ sub get_css {
 		}
 		/* styles for the attemptResults table */
 		table.attemptResults {
-			border-style: outset; 
-			border-width: 1px; 
-			margin-bottom: 1em; 
-			border-spacing: 1px;
+			border-collapse: separate;
+			border: 1px solid rgba(0,0,0,.125);
+            border-radius: 0.25rem;
+			background-color: #fdfdfe;
 		/*      removed float stuff because none of the other elements nearby are
 				floated and it was causing trouble
 			float:left;
@@ -939,14 +1327,12 @@ sub get_css {
 
 		table.attemptResults td,
 		table.attemptResults th {
-			border-style: inset; 
-			border-width: 1px; 
+			border-style: inset;
+            border: 1px solid #dee2e6;
+            padding: 0.75rem;						
 			text-align: center; 
 			vertical-align: middle;
-			/*width: 15ex;*/ /* this was erroniously commented out with "#" */
-			padding: 2px 5px 2px 5px;
-			color: inherit;
-			background-color: #DDDDDD;
+			color: #000000;
 		}
 
 		.attemptResults .popover {
