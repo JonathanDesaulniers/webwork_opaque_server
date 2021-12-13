@@ -178,6 +178,7 @@
    <wsdl:portType name="OmService">
 
       <wsdl:operation name="start" parameterOrder="questionID questionVersion questionHint questionSolution endingquestionSolution maxnumAttempt modeExam questionBaseURL initialParamNames initialParamValues cachedResources">
+      <wsdl:operation name="start" parameterOrder="questionID questionVersion questionHint questionSolution endingquestionSolution modeExam questionBaseURL initialParamNames initialParamValues cachedResources">
          <wsdl:input message="impl:startRequest" name="startRequest"/>
          <wsdl:output message="impl:startResponse" name="startResponse"/>
          <wsdl:fault message="impl:OmException" name="OmException"/>
@@ -201,6 +202,7 @@
       </wsdl:operation>
 
       <wsdl:operation name="getQuestionMetadata" parameterOrder="questionID questionVersion questionHint questionSolution endingquestionSolution maxnumAttempt modeExam questionBaseURL">
+      <wsdl:operation name="getQuestionMetadata" parameterOrder="questionID questionVersion questionHint questionSolution endingquestionSolution modeExam questionBaseURL">
          <wsdl:input message="impl:getQuestionMetadataRequest" name="getQuestionMetadataRequest"/>
          <wsdl:output message="impl:getQuestionMetadataResponse" name="getQuestionMetadataResponse"/>
          <wsdl:fault message="impl:OmException" name="OmException"/>

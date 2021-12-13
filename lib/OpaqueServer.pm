@@ -138,6 +138,10 @@ sub getQuestionMetadata {
 	warn "in getQuestionMetadata";
 	warn "\tremoteid $remoteid remoteversion $remoteversion showhintafter $showhintafter showsolutionafter $showsolutionafter showsolutionaftertest $showsolutionaftertest numattemptlock $numattemptlock exammode $exammode questionbaseurl $questionbaseurl";
 	$self->handle_special_from_questionid($remoteid, $remoteversion, $showhintafter, $showsolutionafter, $showsolutionaftertest, $numattemptlock, $exammode, 'metadata');
+	my ($remoteid, $remoteversion, $questionbaseurl, $showhintafter, $showsolutionafter, $showsolutionaftertest, $exammode, $questionbaseurl) = @_;
+	warn "in getQuestionMetadata";
+	warn "\tremoteid $remoteid remoteversion $remoteversion showhintafter $showhintafter showsolutionafter $showsolutionafter showsolutionaftertest $showsolutionaftertest exammode $exammode questionbaseurl $questionbaseurl";
+	$self->handle_special_from_questionid($remoteid, $remoteversion, $showhintafter, $showsolutionafter, $showsolutionaftertest, $exammode, 'metadata');
      return '<questionmetadata>
                      <scoring><marks>' . MAX_MARK . '</marks></scoring>
                      <plainmode>no</plainmode>
@@ -735,7 +739,6 @@ sub get_html {
 		}
 	}
 	
-	
 	###############################################
 	#Show hint and solution if enough attempt done#
 	###############################################
@@ -801,6 +804,10 @@ sub get_html {
     } else {
                 $qgraded = 0;
 				$floor = 0;
+    if (($localstate eq 'question_attempted' or $localstate eq 'question_graded') && ($submitteddata->{modeexam} ne 1)) {
+                $qgraded = 1;
+    } else {
+                $qgraded = 0;
     }	
 
     my $tbl = WeBWorK::Utils::AttemptsTable->new(
