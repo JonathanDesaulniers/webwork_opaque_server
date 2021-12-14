@@ -982,7 +982,7 @@ sub get_html {
     #Prepare attempt table for the feedback if needed#
     ##################################################
 	
-	if ($submitteddata->{modeexam} == 1){
+	if (($submitteddata->{modeexam} == 1) or ($display_readonly != 1)){
 		my $tbl2 = WeBWorK::Utils::AttemptsTable->new(
 		$answers//{},
 		answersSubmitted       => $submitteddata->{submit},  # a submit button was pressed
