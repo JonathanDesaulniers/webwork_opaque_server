@@ -934,20 +934,35 @@ sub get_html {
 	
 	    ## print number of attempt left before showing hint
 	    if ($Hlimit != 0 && $tryHS <= $Hlimit){
-		    $output .= '<p> <b> Il vous reste '. $Hleft .' tentatives avant que les indices soient disponibles. </b> </p>'; 
+			if ($Hleft != 1) {
+				$output .= '<p> <b> Il vous reste '. $Hleft .' tentatives avant que les indices soient disponibles. </b> </p>';
+			}
+			else {
+				$output .= '<p> <b> Il vous reste '. $Hleft .' tentative avant que les indices soient disponibles. </b> </p>';
+			}
 	    }		
 	
 	    ## print number of attempt left before showing solution
 
         if ($Slimit != 0 && $tryHS <= $Slimit){
-		    $output .= '<p> <b> Il vous reste '. $Sleft .' tentatives avant que la question soit verrouill&eacutee. </b> </p>'; 
+			if ($Sleft != 1){
+				$output .= '<p> <b> Il vous reste '. $Sleft .' tentatives avant que la question soit verrouill&eacutee. </b> </p>';
+			} 
+			else {
+				$output .= '<p> <b> Il vous reste '. $Sleft .' tentative avant que la question soit verrouill&eacutee. </b> </p>';
+			}
 	    }
 	    
 		## print number of attempt before question is closed
 		
 		if ($submitteddata->{maxnumattempt} != 0){
 			if ($step > 0){
-			$output .= '<p> <b> Il vous reste '. $step .' tentatives avant que la question soit verrouill&eacutee. </b> </p>';
+				if ($step != 1){
+					$output .= '<p> <b> Il vous reste '. $step .' tentatives avant que la question soit verrouill&eacutee. </b> </p>';
+				}
+				else {
+					$output .= '<p> <b> Il vous reste '. $step .' tentative avant que la question soit verrouill&eacutee. </b> </p>';
+				}
 			}
 		}
 	}
