@@ -1336,7 +1336,7 @@ sub get_css {
 		/* styles for the attemptResults table */
 		table.attemptResults {
 			border-collapse: separate;
-			border: 1px solid rgba(0,0,0,.125);
+			border: 1px solid rgba(0,0,0,.200);
             border-radius: 0.25rem;
 			background-color: #fdfdfe;
 		/*      removed float stuff because none of the other elements nearby are
@@ -1348,7 +1348,7 @@ sub get_css {
 		table.attemptResults td,
 		table.attemptResults th {
 			border-style: inset;
-            border: 1px solid #dee2e6;
+            border: 1px solid rgba(0,0,0,.200);
             padding: 0.75rem;						
 			text-align: center; 
 			vertical-align: middle;
