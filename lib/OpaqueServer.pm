@@ -740,7 +740,7 @@ sub get_html {
 	#Show hint and solution if enough attempt done#
 	###############################################
 	
-	if ($submitteddata->{Hlimit} ne 0){
+	if ($Hlimit ne 0){
 		if (($submitteddata->{questionhint} - $submitteddata->{tryHS} + 1) <= 0){
 			$submitteddata->{Hshow} = 1;
 		} else{
@@ -748,7 +748,7 @@ sub get_html {
 		}
 	}
 	
-	if ($submitteddata->{Slimit} ne 0){
+	if ($Slimit ne 0){
 		if (($submitteddata->{questionsolution} - $submitteddata->{tryHS} + 1) <= 0){
 			$submitteddata->{Sshow} = 1;
 		} else{
@@ -918,6 +918,44 @@ sub get_html {
 
        	## print results table
 	$output .= $attemptResults;
+	
+	if (not defined($submitteddata->{stopall})){
+	
+	    ## print number of attempt left before showing hint
+	    if ($Hlimit != 0 && $tryHS <= $Hlimit){
+			if ($Hleft != 1) {
+				$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Hleft .' tentatives avant que les indices soient disponibles. </FONT> </b> </p>';
+			}
+			else {
+				$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Hleft .' tentative avant que les indices soient disponibles. </FONT> </b> </p>';
+			}
+	    }		
+	
+	    ## print number of attempt left before showing solution
+
+        if ($Slimit != 0 && $tryHS <= $Slimit){
+			if ($Sleft != 1){
+				$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Sleft .' tentatives avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
+			} 
+			else {
+				$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Sleft .' tentative avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
+			}
+	    }
+	    
+		## print number of attempt before question is closed
+		
+		if ($submitteddata->{maxnumattempt} != 0 && $Slimit == 0){
+			if ($step > 0){
+				if ($step != 1){
+					$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $step .' tentatives avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
+				}
+				else {
+					$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $step .' tentative avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
+				}
+			}
+		}
+	}
+	
 	## print question text
 	$output .= "\n<hr>\n". $pg->{body_text} ."\n<hr>\n";
 	## print buttons (preview, submit, grade&finish)
@@ -929,43 +967,6 @@ sub get_html {
 		'</p>',
 		'</div>',
 	);
-	
-	if (not defined($submitteddata->{stopall})){
-	
-	    ## print number of attempt left before showing hint
-	    if ($Hlimit != 0 && $tryHS <= $Hlimit){
-			if ($Hleft != 1) {
-				$output .= '<p> <b> Il vous reste '. $Hleft .' tentatives avant que les indices soient disponibles. </b> </p>';
-			}
-			else {
-				$output .= '<p> <b> Il vous reste '. $Hleft .' tentative avant que les indices soient disponibles. </b> </p>';
-			}
-	    }		
-	
-	    ## print number of attempt left before showing solution
-
-        if ($Slimit != 0 && $tryHS <= $Slimit){
-			if ($Sleft != 1){
-				$output .= '<p> <b> Il vous reste '. $Sleft .' tentatives avant que la question soit verrouill&eacutee. </b> </p>';
-			} 
-			else {
-				$output .= '<p> <b> Il vous reste '. $Sleft .' tentative avant que la question soit verrouill&eacutee. </b> </p>';
-			}
-	    }
-	    
-		## print number of attempt before question is closed
-		
-		if ($submitteddata->{maxnumattempt} != 0){
-			if ($step > 0){
-				if ($step != 1){
-					$output .= '<p> <b> Il vous reste '. $step .' tentatives avant que la question soit verrouill&eacutee. </b> </p>';
-				}
-				else {
-					$output .= '<p> <b> Il vous reste '. $step .' tentative avant que la question soit verrouill&eacutee. </b> </p>';
-				}
-			}
-		}
-	}
 
 	$output .= $debuggingData;
 	
@@ -973,7 +974,7 @@ sub get_html {
     #Prepare solution for feedback if needed         #
     ##################################################
 	
-	if ($Slimit != 0){
+	if ($submitteddata->{endingquestionsolution} eq 1){
 	my $pg2 = OpaqueServer::renderOpaquePGProblemFB($filePath, $submitteddata);
 	$submitteddata->{body} = $pg2->{body_text};
 	}
