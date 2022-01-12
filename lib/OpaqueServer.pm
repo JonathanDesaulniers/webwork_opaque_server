@@ -377,7 +377,7 @@ sub process {
 	##################################
     # Push solution and correctans to general feedback if needed
     ##################################
-    
+	
 	if (defined($params->{body}) && ($params->{endingquestionsolution} eq 1)) {
 	    $return->{solfeedback} = $params->{body};
     }
@@ -933,18 +933,20 @@ sub get_html {
 	
 	    ## print number of attempt left before showing solution
 
-        if ($Slimit != 0 && $tryHS <= $Slimit){
-			if ($Sleft != 1){
-				$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Sleft .' tentatives avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
-			} 
-			else {
-				$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Sleft .' tentative avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
+        if ($Slimit != 0 && ($submitteddata->{maxnumattempt} == 0 or $submitteddata->{maxnumattempt} > $Slimit)){
+			if ($tryHS <= $Slimit){
+				if ($Sleft != 1){
+					$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Sleft .' tentatives avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
+				} 
+				else {
+					$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Sleft .' tentative avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
+				}
 			}
 	    }
 	    
 		## print number of attempt before question is closed
 		
-		if ($submitteddata->{maxnumattempt} != 0 && $Slimit == 0){
+		if ($submitteddata->{maxnumattempt} != 0 && ($Slimit == 0 or $submitteddata->{maxnumattempt} < $Slimit)){
 			if ($step > 0){
 				if ($step != 1){
 					$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $step .' tentatives avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
@@ -974,9 +976,11 @@ sub get_html {
     #Prepare solution for feedback if needed         #
     ##################################################
 	
-	if ($submitteddata->{endingquestionsolution} eq 1){
-	my $pg2 = OpaqueServer::renderOpaquePGProblemFB($filePath, $submitteddata);
-	$submitteddata->{body} = $pg2->{body_text};
+	if (($submitteddata->{endingquestionsolution} eq 1)){
+		if (($Slimit == 0) or ($tryHS <= $Slimit)){
+			my $pg2 = OpaqueServer::renderOpaquePGProblemFB($filePath, $submitteddata);
+		    $submitteddata->{body} = $pg2->{body_text};
+		}
 	}
 	
 	##################################################
@@ -1076,10 +1080,6 @@ sub renderOpaquePGProblem {
     #print "entering renderOpaquePGProblem\n\n";
     my $problemFile = shift//'';
     my $formFields  = shift//'';  # these fields are part of $submitteddata"
-	#my $tryHS = 1;
-	#if (defined($formFields->{tryHS})){
-	#    $tryHS = $formFields->{tryHS};
-	#}
 	
 	my $Hshow;
     my $Sshow;
@@ -1087,8 +1087,19 @@ sub renderOpaquePGProblem {
 	my $Hlimit = $formFields->{questionhint};
 	my $Slimit = $formFields->{questionsolution};
 	
-	$Hshow = $formFields->{Hshow};
-	$Sshow = $formFields->{Sshow};
+	if ($Hlimit eq 0){
+		$Hshow = 0;
+	}
+	else {
+		$Hshow = $formFields->{Hshow};
+	}
+	
+	if ($Slimit eq 0){
+		$Sshow = 0;
+	}
+	else {
+		$Sshow = $formFields->{Sshow};
+	}
 	
 	if ($formFields->{PGstop} eq 1) {
 		if ($Hlimit ne 0){	
@@ -1098,17 +1109,6 @@ sub renderOpaquePGProblem {
 			$Sshow = 1;
 		}
 	}
-        
-    #    if(($Hlimit ne 0) && ($tryHS > $Hlimit)) {
-    #          $Hshow = 1;
-    #     }
-    #    if(($Slimit ne 0) && ($tryHS > $Slimit)) {
-    #          $Sshow = 1;
-    #     }
-		 
-	#	if(($rdonly eq 1) && ($Slimit > 0)) {
-	#		  $Sshow = 1;
-	#	 }
 	
     my $courseName = $formFields->{courseName}||'daemon_course';
     #warn "rendering $problemFile in course $courseName \n";
@@ -1148,8 +1148,8 @@ sub renderOpaquePGProblem {
 	my $extras = {};   # Check what this is used for.
 	
 	# Create template of problem then add source text or a path to the source file
-	# local $ce->{pg}{specialPGEnvironmentVars}{problemPreamble} = {TeX=>'',HTML=>''};
-	# local $ce->{pg}{specialPGEnvironmentVars}{problemPostamble} = {TeX=>'',HTML=>''};
+	 local $ce->{pg}{specialPGEnvironmentVars}{problemPreamble} = {TeX=>'',HTML=>''};
+	 local $ce->{pg}{specialPGEnvironmentVars}{problemPostamble} = {TeX=>'',HTML=>''};
 	# writeLog("preamble",$ce->{pg}{specialPGEnvironmentVars}{problemPreamble}{HTML});
 	my $problem = fake_problem($db, 'problem_seed'=>$problem_seed);
 	$problem->{value} = -1;	
