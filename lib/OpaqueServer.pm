@@ -385,6 +385,14 @@ sub process {
 	if (defined($params->{attempttable})){
 		$return->{correctanstable} = $params->{attempttable};
 	}
+	
+	##############################################
+	# Push attempt table for the attempt history #
+	##############################################
+	
+	if (defined($params->{attempttable1})){
+		$return->{correctanstable1} = $params->{attempttable1};
+	}
 
 	######################
 	# send data to ww_opaque_server/logs/session.log file
@@ -643,13 +651,14 @@ sub get_html {
 	
 	if ($submitteddata->{modeexam} ne 1) {
 		if (defined($submitteddata->{WWsubmit}) && $PGscore==1) {
-			$submitteddata->{WWcorrectAns} =1;
+			$submitteddata->{WWcorrectAns} = 1;
 			$localstate = 'question_graded'  if $submitteddata->{WWcorrectAns};
+			$submitteddata->{localstate}=$localstate;
 			$display_readonly = 1;
 			$WWpreviewDisabled     = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
 			$WWsubmitDisabled      = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
 			$WWcorrectAnsDisabled  =  ($localstate eq 'question_graded')?'disabled="disabled" ':'';
-			$submitteddata->{finish}='Finish' if $submitteddata->{WWcorrectAns};
+		#	$submitteddata->{finish}='Finish' if $display_readonly or $submitteddata->{WWcorrectAns};
 			$submitteddata->{submit}='Submit' if $submitteddata->{WWpreview} or 
 			$submitteddata->{WWsubmit} or $submitteddata->{WWcorrectAns};
 		}
@@ -775,10 +784,11 @@ sub get_html {
     if ($display_readonly == 1) {
         $submitteddata->{WWsubmit} = 1;
         $localstate = 'question_graded'  if $submitteddata->{WWsubmit};
+		$submitteddata->{localstate}=$localstate;
         $WWpreviewDisabled     = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
         $WWsubmitDisabled      = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
         $WWcorrectAnsDisabled  =  ($localstate eq 'question_graded')?'disabled="disabled" ':'';
-        $submitteddata->{finish}='Finish' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
+        #$submitteddata->{finish}='Finish' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
         $submitteddata->{submit}='Submit' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
     }
 	
@@ -823,8 +833,8 @@ sub get_html {
 	
 	my $attemptResults = $tbl->answerTemplate();
 	# render equation images
-	$tbl->imgGen->render(refresh => 1) if $tbl->displayMode eq 'images';
-
+	$tbl->imgGen->render(refresh => 1) if $tbl->displayMode eq 'images';	
+	
 	######################################
 	# Store state in HTML page (our implementation of session storage)
 	######################################
@@ -960,6 +970,7 @@ sub get_html {
 	
 	## print question text
 	$output .= "\n<hr>\n". $pg->{body_text} ."\n<hr>\n";
+	
 	## print buttons (preview, submit, grade&finish)
 	$output .= join("\n",#        '<h4>Actions</h4>',
 		'<p>',
@@ -982,6 +993,12 @@ sub get_html {
 		    $submitteddata->{body} = $pg2->{body_text};
 		}
 	}
+	
+    ######################################################################################
+	# Store the attempt table to use in the attempt history when Moodle test is finished #
+    ######################################################################################
+
+    $submitteddata->{attempttable1} = $attemptResults;
 	
 	##################################################
     #Prepare attempt table for the feedback if needed#
