@@ -782,8 +782,8 @@ sub get_html {
 	##########################################################################################
 	
     if ($display_readonly == 1) {
-        $submitteddata->{WWsubmit} = 1;
-        $localstate = 'question_graded'  if $submitteddata->{WWsubmit};
+		$submitteddata->{WWcorrectAns} = 1;
+		$localstate = 'question_graded'  if $submitteddata->{WWcorrectAns};
 		$submitteddata->{localstate}=$localstate;
         $WWpreviewDisabled     = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
         $WWsubmitDisabled      = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
