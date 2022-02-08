@@ -914,6 +914,19 @@ sub get_html {
 	
 	$pg = OpaqueServer::renderOpaquePGProblem($filePath, $submitteddata);
 
+	#################################################
+	# if readonly, disable input, radio and checkbox#
+	#################################################
+	
+	if ($display_readonly == 1) { 
+		my $oldstring = $pg->{body_text};
+		my $newstring = $oldstring;
+		$newstring =~ s/input/input disabled="disabled"/g;
+		$newstring =~ s/INPUT/INPUT disabled="disabled"/ig;
+		$newstring =~ s/pg-select"/pg-select" disabled="disabled"/g;
+		$pg->{body_text} = $newstring;
+	}
+	
 	######################################
 	# Prepare output HTML
 	######################################
