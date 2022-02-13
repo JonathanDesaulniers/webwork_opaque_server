@@ -788,7 +788,7 @@ sub get_html {
         $WWpreviewDisabled     = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
         $WWsubmitDisabled      = ($localstate eq 'question_graded')?'disabled="disabled" ':'';
         $WWcorrectAnsDisabled  =  ($localstate eq 'question_graded')?'disabled="disabled" ':'';
-        #$submitteddata->{finish}='Finish' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
+    #    $submitteddata->{finish}='Finish' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
         $submitteddata->{submit}='Submit' if $submitteddata->{WWcorrectAns} or $submitteddata->{WWsubmit};
     }
 	
@@ -988,7 +988,7 @@ sub get_html {
 	$output .= join("\n",#        '<h4>Actions</h4>',
 		'<p>',
 	#	q!<button type="submit" name="%%IDPREFIX%%WWpreview"  value=1!.qq!  $WWpreviewDisabled class="btn btn-primary"> Pr&eacutevisualiser </button> !,	
-		q!<button type="submit" name="%%IDPREFIX%%WWsubmit" value=1!.qq!  $WWsubmitDisabled class="btn btn-primary"> Soumettre </button> !,
+		q!<button type="submit" name="%%IDPREFIX%%WWsubmit" value=1!.qq!  $WWsubmitDisabled class="btn btn-secondary"> Soumettre </button> !,
 	# 	q!<button type="submit" name="%%IDPREFIX%%WWcorrectAns" value=1!.qq!  $WWcorrectAnsDisabled class="btn btn-primary"> Envoyer et Terminer </button>!,
 		'</p>',
 		'</div>',
