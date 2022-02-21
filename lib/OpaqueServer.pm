@@ -603,7 +603,25 @@ sub get_html {
 	    $submitteddata->{WWsubmit} or $submitteddata->{WWcorrectAns};
 	
 	######################################
+	
+	###############################################
+	# Force state to be submitted if in exam mode #
+	###############################################
+
+	if ($submitteddata->{modeexam} == 1 && $submitteddata->{try} eq "") {
+		my $localstate = $submitteddata->{localstate}//'WWpreview';
+		$localstate = 'question_attempted';
+		$localstate = 'question_graded'  if $submitteddata->{WWcorrectAns};
+		$submitteddata->{localstate}=$localstate; #update $params
+		my $WWpreviewDisabled     = ($display_readonly or $localstate eq 'question_graded')?'disabled="disabled" ':'';
+		my $WWsubmitDisabled      = ($display_readonly or $localstate eq 'question_graded')?'disabled="disabled" ':'';
+		my $WWcorrectAnsDisabled  = ($display_readonly or $localstate eq 'question_graded')?'disabled="disabled" ':'';
+		$submitteddata->{finish}='Finish' if $display_readonly or $submitteddata->{WWcorrectAns};
+		$submitteddata->{submit}='Submit' if $submitteddata->{WWpreview} or 
+			$submitteddata->{submit}='Submit';
+			$submitteddata->{WWsubmit} = "1";
 		
+	}
 	
 	######################################
 	# Adjust file path
@@ -662,7 +680,7 @@ sub get_html {
 			$submitteddata->{submit}='Submit' if $submitteddata->{WWpreview} or 
 			$submitteddata->{WWsubmit} or $submitteddata->{WWcorrectAns};
 		}
-	}
+	} 		
 
     my $answerOrder = $pg->{flags}->{ANSWER_ENTRY_ORDER};
 	my $answers = $pg->{answers};
@@ -708,7 +726,7 @@ sub get_html {
 	    $submitteddata->{sameans} = 0;
 	}
     
-	if (defined($submitteddata->{WWsubmit})){
+	if ($submitteddata->{try} ne 1 && defined($submitteddata->{WWsubmit})){
         $submitteddata->{pasttry}++ if ($submitteddata->{sameans} eq 1);
 	}
 	
@@ -940,7 +958,9 @@ sub get_html {
 	}
 
        	## print results table
-	$output .= $attemptResults;
+	if ($submitteddata->{try} ne "") {
+		$output .= $attemptResults;
+	}
 	
 	if (not defined($submitteddata->{stopall})){
 	
