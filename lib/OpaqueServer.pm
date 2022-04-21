@@ -765,7 +765,11 @@ sub get_html {
 	if ($Hlimit ne 0){
 		if (($submitteddata->{questionhint} - $submitteddata->{tryHS} + 1) <= 0){
 			$submitteddata->{Hshow} = 1;
-		} else{
+		} 
+		elsif ($Hlimit >=100){
+			$submitteddata->{Hshow} = 1;
+		}		
+		else{
 			$submitteddata->{Hshow} = 0;
 		}
 	}
@@ -773,7 +777,11 @@ sub get_html {
 	if ($Slimit ne 0){
 		if (($submitteddata->{questionsolution} - $submitteddata->{tryHS} + 1) <= 0){
 			$submitteddata->{Sshow} = 1;
-		} else{
+		} 
+		elsif ($Slimit >=100){
+			$submitteddata->{Sshow} = 1;
+		}
+		else{
 			$submitteddata->{Sshow} = 0;
 		}
 	}
@@ -960,7 +968,7 @@ sub get_html {
 	if (not defined($submitteddata->{stopall})){
 	
 	    ## print number of attempt left before showing hint
-	    if ($Hlimit != 0 && $tryHS <= $Hlimit && $PGscore != 1){
+	    if ($Hlimit != 0 && $tryHS <= $Hlimit && $PGscore != 1 && $Hlimit < 100){
 			if ($Hleft != 1) {
 				$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Hleft .' tentatives avant que les indices soient disponibles. </FONT> </b> </p>';
 			}
@@ -971,7 +979,7 @@ sub get_html {
 	
 	    ## print number of attempt left before showing solution
 
-        if ($Slimit != 0 && ($submitteddata->{maxnumattempt} == 0 or $submitteddata->{maxnumattempt} > $Slimit)){
+        if ($Slimit != 0 && ($submitteddata->{maxnumattempt} == 0 or $submitteddata->{maxnumattempt} > $Slimit) && $Hlimit < 100){
 			if ($tryHS <= $Slimit){
 				if ($Sleft != 1){
 					$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Sleft .' tentatives avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
