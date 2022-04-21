@@ -378,11 +378,11 @@ sub process {
     # Push solution and correctans to general feedback if needed
     ##################################
 	
-	if (defined($params->{body}) && ($params->{endingquestionsolution} eq 1)) {
+	if (defined($params->{body}) && defined($params->{WWsubmit})) {
 	    $return->{solfeedback} = $params->{body};
     }
 	
-	if (defined($params->{attempttable})){
+	if (defined($params->{attempttable}) && defined($params->{WWsubmit})){
 		$return->{correctanstable} = $params->{attempttable};
 	}
 	
@@ -390,7 +390,7 @@ sub process {
 	# Push attempt table for the attempt history #
 	##############################################
 	
-	if (defined($params->{attempttable1})){
+	if (defined($params->{attempttable1}) && defined($params->{WWsubmit})){
 		$return->{correctanstable1} = $params->{attempttable1};
 	}
 
@@ -742,11 +742,6 @@ sub get_html {
 	my $Hlimit = $submitteddata->{questionhint};
 	my $Slimit = $submitteddata->{questionsolution};
 	
-	if ($PGscore == 1){
-	    $Hlimit = 1;
-		$Slimit = 1;
-	}
-	
 	my $Hleft = $submitteddata->{questionhint} - $submitteddata->{tryHS} + 1;
 	my $Sleft = $submitteddata->{questionsolution} - $submitteddata->{tryHS} + 1;
 	
@@ -788,7 +783,7 @@ sub get_html {
 	#############################################
 	
 	if (defined($submitteddata->{tryHS})){
-	    if(($submitteddata->{questionsolution} ne 0) && ($submitteddata->{tryHS} > $submitteddata->{questionsolution})) {
+	    if(($submitteddata->{questionsolution} ne 0) && ($submitteddata->{tryHS} > $submitteddata->{questionsolution} or $PGscore eq 1)) {
 		    $display_readonly = 1;
 			$submitteddata->{stopall} = 1;
 	    }
@@ -965,7 +960,7 @@ sub get_html {
 	if (not defined($submitteddata->{stopall})){
 	
 	    ## print number of attempt left before showing hint
-	    if ($Hlimit != 0 && $tryHS <= $Hlimit){
+	    if ($Hlimit != 0 && $tryHS <= $Hlimit && $PGscore != 1){
 			if ($Hleft != 1) {
 				$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $Hleft .' tentatives avant que les indices soient disponibles. </FONT> </b> </p>';
 			}
@@ -989,7 +984,7 @@ sub get_html {
 	    
 		## print number of attempt before question is closed
 		
-		if ($submitteddata->{maxnumattempt} != 0 && ($Slimit == 0 or $submitteddata->{maxnumattempt} < $Slimit)){
+		if ($submitteddata->{maxnumattempt} != 0 && ($Slimit == 0 or $submitteddata->{maxnumattempt} < $Slimit) && $PGscore != 1){
 			if ($step > 0){
 				if ($step != 1){
 					$output .= '<p> <b> <FONT COLOR="RED"> Il vous reste '. $step .' tentatives avant que la question soit verrouill&eacutee. </FONT> </b> </p>';
@@ -1020,12 +1015,21 @@ sub get_html {
     #Prepare solution for feedback if needed         #
     ##################################################
 	
-	if (($submitteddata->{endingquestionsolution} eq 1)){
-		if (($Slimit == 0) or ($tryHS <= $Slimit)){
+	if ($submitteddata->{endingquestionsolution} == 1){
+		if ($Slimit eq 0){
+			my $pg2 = OpaqueServer::renderOpaquePGProblemFB($filePath, $submitteddata);
+		    $submitteddata->{body} = $pg2->{body_text};
+		} 
+		elsif (not defined($submitteddata->{stopall})){
 			my $pg2 = OpaqueServer::renderOpaquePGProblemFB($filePath, $submitteddata);
 		    $submitteddata->{body} = $pg2->{body_text};
 		}
-	}
+		
+		else {
+			$submitteddata->{body} = 1;
+		}
+	}	
+	
 	
     ######################################################################################
 	# Store the attempt table to use in the attempt history when Moodle test is finished #
@@ -1056,6 +1060,8 @@ sub get_html {
 		$tbl2->imgGen->render(refresh => 1) if $tbl2->displayMode eq 'images';
 		
 		$submitteddata->{attempttable} = $attemptResults2;
+	} else {
+		$submitteddata->{attempttable} = 1;
 	}
 	
 	return ($output, $PGscore);
@@ -1236,9 +1242,6 @@ sub renderOpaquePGProblem {
 
 sub renderOpaquePGProblemFB {
     
-# Get the number of try for enabling hint and solution using $tryHS
-# $Hlimit and $Slimit should be pushed from a Moodle form to choose
-# the number of attemp before showing the Hint and the Solution 
 	
     #print "entering renderOpaquePGProblemFB\n\n";
     my $problemFile = shift//'';
@@ -1298,7 +1301,7 @@ sub renderOpaquePGProblemFB {
 	$problem->problem_id("1") unless $problem->problem_id();
 		
 		
-	my $pg = new WeBWorK::PG(
+	my $pg2 = new WeBWorK::PG(
 		$ce,
 		$user,
 		$key,
@@ -1309,7 +1312,7 @@ sub renderOpaquePGProblemFB {
 		$translationOptions,
 		$extras,
 	);
-		return $pg;
+		return $pg2;
 }
 
 ####################################################################################
