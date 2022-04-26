@@ -691,6 +691,7 @@ sub get_html {
 	############################################################################
 		
 	my @student_ans;
+	my @subcopy;
 	my $value1;
 	my $key;
 	my $count = 0;
@@ -708,17 +709,31 @@ sub get_html {
 	@student_ans = sort @student_ans;
 	@student_ans = sort { $a <=> $b } @student_ans;
 	
+	my $addstr = 'ans1';
+	
 	for (my $i = 0; $i < $count; $i++) {
-		if (defined($submitteddata->{$i})){
-            if ($submitteddata->{$i} eq $student_ans[$i]) {
-			    $diff++;
-		    }
+		if (defined($submitteddata->{$addstr})){
+			$subcopy[$i] = $submitteddata->{$addstr};
+			$addstr .= '1';
 		}
 	}
 	
-    for (my $i = 0; $i < $count; $i++) {
-        $submitteddata->{$i} = $student_ans[$i];
+	@subcopy = sort @subcopy;
+	@subcopy = sort { $a <=> $b } @subcopy;
+	
+	for (my $i = 0; $i < $count; $i++) {
+            if ($subcopy[$i] eq $student_ans[$i]) {
+			    $diff++;
+		    
 		}
+	}
+	
+	$addstr = 'ans1';
+	
+    for (my $i = 0; $i < $count; $i++) {
+		$submitteddata->{$addstr} = $student_ans[$i];
+		$addstr .= '1';
+	}
 	
 	if ($diff == $count){
 		$submitteddata->{sameans} = 1;
@@ -744,6 +759,16 @@ sub get_html {
 	
 	my $Hleft = $submitteddata->{questionhint} - $submitteddata->{tryHS} + 1;
 	my $Sleft = $submitteddata->{questionsolution} - $submitteddata->{tryHS} + 1;
+	
+	#############################################################
+	#FIX int in hash key of submitteddate error since PHP 7.4 + #
+	#############################################################
+	
+	#foreach $key (keys %{$submitteddata}){
+	#	if ($key =~ /^[+-]?\d+$/ ) {
+	#		delete $submitteddata->{0};
+	#	}
+	#}
 	
 	############################################
 	#Determine if question is at max attempt   #
