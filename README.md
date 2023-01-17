@@ -6,7 +6,7 @@ to these instructions need to be made if that is not true in your case.
 * Download the software and make a local copy of the configuration file 
 
         cd /opt/webwork   
-        git clone https://github.com/openwebwork/opaque_server.git 
+        git clone https://github.com/SN-RECIT-formation-a-distance/opaque_server.git 
         cd opaque_server/conf`
         cp opaqueserver.apache-config.dist opaqueserver.apache-config 
 
