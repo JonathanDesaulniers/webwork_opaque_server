@@ -1058,9 +1058,9 @@ sub get_html {
 		    $submitteddata->{body} = $pg2->{body_text};
 		}
 		
-		else {
-			$submitteddata->{body} = 1;
-		}
+#		else {
+#			$submitteddata->{body} = 1;
+#		}
 	}	
 	
 	
@@ -1093,9 +1093,11 @@ sub get_html {
 		$tbl2->imgGen->render(refresh => 1) if $tbl2->displayMode eq 'images';
 		
 		$submitteddata->{attempttable} = $attemptResults2;
-	} else {
-		$submitteddata->{attempttable} = 1;
-	}
+	} 
+	
+#	else {
+#		$submitteddata->{attempttable} = 1;
+#	}
 	
 	return ($output, $PGscore);
 
